@@ -1,0 +1,71 @@
+<html>
+
+<head>
+<title>Title</title>
+</head>
+
+<body>
+
+<p>Our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. We start by reading and partitioning the data:</p>
+<!--begin.rcode
+library(caret)
+allTrainData<-read.csv("./pml-training.csv")
+realTestData<-read.csv("./pml-testing.csv")
+dim(allTrainData)
+indices<-createDataPartition(y=allTrainData$classe, p=0.6, list=FALSE)
+train<-allTrainData[indices,]
+test<-allTrainData[-indices,]
+end.rcode-->
+
+<p>We have now divided the Training data into 60% for Training, and 40% for testing. We now remove all of those columns that are not going to be useful for the predictions, for example, the names and the raw timestamps. Also, we are eliminating those that have NAs</p>
+<!--begin.rcode
+cols <- sapply(1:dim(train)[2], function(x) all(!is.na(train[,x]) & is.numeric(train[,x])))
+cols[1:7]<-F
+end.rcode-->
+
+<p>Now we use a random forest classifier to fit the data</p>
+<!--begin.rcode
+library(randomForest)
+mat<-predict(preProcess(train[,cols], method=c("center","scale")),train[,cols])
+mat[,"classe"]<-train$classe
+fit<-randomForest(classe ~ ., data=mat, importance=T, ntree=400, norm.votes=T)
+fit
+end.rcode-->
+<p>As you can see, using 400 trees and 7 variables at each split (the default) we get a good accuracy. The following graph allows us to see which are the most important features:</p>
+<!--begin.rcode fig.width=7, fig.height=6
+varImpPlot(fit)
+end.rcode-->
+<p>We keep these predictors and train again:</p>
+<!--begin.rcode
+new_cols<-c("roll_belt","pitch_belt","yaw_belt","gyros_belt_z","accel_belt_z","magnet_belt_x","magnet_belt_y","magnet_belt_z","roll_arm","pitch_arm","yaw_arm","gyros_arm_x","gyros_arm_y","accel_arm_x","magnet_arm_z","roll_dumbbell","yaw_dumbbell","total_accel_dumbbell","gyros_dumbbell_x","gyros_dumbbell_y","accel_dumbbell_y","accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y","magnet_dumbbell_z","roll_forearm","pitch_forearm","yaw_forearm","total_accel_forearm","gyros_forearm_y","gyros_forearm_z","accel_forearm_x","accel_forearm_y","accel_forearm_z","magnet_forearm_y","magnet_forearm_z")
+new_mat<-train[,new_cols]
+new_mat[,"classe"]<-train[,"classe"]
+new_fit<-randomForest(classe ~ ., n_tree=400, data = new_mat, importance=TRUE)
+new_fit
+end.rcode-->
+
+<p>Our new fitted model shows improvement with respect to the previous one. Now we do a cross-validation. In this case, we will try a 15 fold cross validation (This part of the code might take some time to run)</p>
+<!--begin.rcode
+#install.packages("cvTools")
+library(cvTools) 
+foldings <- cvFolds(dim(new_mat)[1], K = 15, R = 1)
+errors <- rep(NA,15)
+for (i in 1:15) {
+  ind <- foldings$subsets[foldings$which == i]
+  temporal_model <- randomForest(classe ~ ., data=new_mat[-ind,])
+  result <- predict(temporal_model,new_mat[ind,])
+  errors[i] <- sum(result != new_mat[ind,"classe"]) / length(result)
+}
+errors
+end.rcode-->
+
+<p>Now that the model is ready, we can use it with the test data.</p>
+<!--begin.rcode
+test <- predict(preProcess(train[,cols], method=c("center","scale")),train[,cols],realTestData[,cols])
+test[,"classe"] <-realTestData[,cols]$classe
+OurPrediction <- predict(new_fit, test)
+end.rcode-->
+
+
+</body>
+</html>
