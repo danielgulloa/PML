@@ -1,0 +1,183 @@
+<html>
+
+<head>
+<style type="text/css">
+.knitr.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+},
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0em 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.rimage.left {
+  text-align: left;
+}
+.rimage.right {
+  text-align: right;
+}
+.rimage.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>Title</title>
+</head>
+
+<body>
+
+<p>Our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. We start by reading and partitioning the data:</p>
+<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(caret)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## Loading required package: lattice
+## Loading required package: ggplot2
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">allTrainData</span><span class="hl kwb">&lt;-</span><span class="hl kwd">read.csv</span><span class="hl std">(</span><span class="hl str">&quot;./pml-training.csv&quot;</span><span class="hl std">)</span>
+<span class="hl std">realTestData</span><span class="hl kwb">&lt;-</span><span class="hl kwd">read.csv</span><span class="hl std">(</span><span class="hl str">&quot;./pml-testing.csv&quot;</span><span class="hl std">)</span>
+<span class="hl kwd">dim</span><span class="hl std">(allTrainData)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 19622   160
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">indices</span><span class="hl kwb">&lt;-</span><span class="hl kwd">createDataPartition</span><span class="hl std">(</span><span class="hl kwc">y</span><span class="hl std">=allTrainData</span><span class="hl opt">$</span><span class="hl std">classe,</span> <span class="hl kwc">p</span><span class="hl std">=</span><span class="hl num">0.6</span><span class="hl std">,</span> <span class="hl kwc">list</span><span class="hl std">=</span><span class="hl num">FALSE</span><span class="hl std">)</span>
+<span class="hl std">train</span><span class="hl kwb">&lt;-</span><span class="hl std">allTrainData[indices,]</span>
+<span class="hl std">test</span><span class="hl kwb">&lt;-</span><span class="hl std">allTrainData[</span><span class="hl opt">-</span><span class="hl std">indices,]</span>
+</pre></div>
+</div></div>
+
+<p>We have now divided the Training data into 60% for Training, and 40% for testing. We now remove all of those columns that are not going to be useful for the predictions, for example, the names and the raw timestamps. Also, we are eliminating those that have NAs</p>
+<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">cols</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">sapply</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">dim</span><span class="hl std">(train)[</span><span class="hl num">2</span><span class="hl std">],</span> <span class="hl kwa">function</span><span class="hl std">(</span><span class="hl kwc">x</span><span class="hl std">)</span> <span class="hl kwd">all</span><span class="hl std">(</span><span class="hl opt">!</span><span class="hl kwd">is.na</span><span class="hl std">(train[,x])</span> <span class="hl opt">&amp;</span> <span class="hl kwd">is.numeric</span><span class="hl std">(train[,x])))</span>
+<span class="hl std">cols[</span><span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">7</span><span class="hl std">]</span><span class="hl kwb">&lt;-</span><span class="hl std">F</span>
+</pre></div>
+</div></div>
+
+<p>Now we use a random forest classifier to fit the data</p>
+<div class="chunk" id="unnamed-chunk-3"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(randomForest)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## randomForest 4.6-10
+## Type rfNews() to see new features/changes/bug fixes.
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">mat</span><span class="hl kwb">&lt;-</span><span class="hl kwd">predict</span><span class="hl std">(</span><span class="hl kwd">preProcess</span><span class="hl std">(train[,cols],</span> <span class="hl kwc">method</span><span class="hl std">=</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">&quot;center&quot;</span><span class="hl std">,</span><span class="hl str">&quot;scale&quot;</span><span class="hl std">)),train[,cols])</span>
+<span class="hl std">mat[,</span><span class="hl str">&quot;classe&quot;</span><span class="hl std">]</span><span class="hl kwb">&lt;-</span><span class="hl std">train</span><span class="hl opt">$</span><span class="hl std">classe</span>
+<span class="hl std">fit</span><span class="hl kwb">&lt;-</span><span class="hl kwd">randomForest</span><span class="hl std">(classe</span> <span class="hl opt">~</span> <span class="hl std">.,</span> <span class="hl kwc">data</span><span class="hl std">=mat,</span> <span class="hl kwc">importance</span><span class="hl std">=T,</span> <span class="hl kwc">ntree</span><span class="hl std">=</span><span class="hl num">400</span><span class="hl std">,</span> <span class="hl kwc">norm.votes</span><span class="hl std">=T)</span>
+<span class="hl std">fit</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+##  randomForest(formula = classe ~ ., data = mat, importance = T,      ntree = 400, norm.votes = T) 
+##                Type of random forest: classification
+##                      Number of trees: 400
+## No. of variables tried at each split: 7
+## 
+##         OOB estimate of  error rate: 0.67%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3346    0    1    1    0   0.0005974
+## B   18 2257    4    0    0   0.0096534
+## C    0   15 2036    3    0   0.0087634
+## D    0    0   31 1898    1   0.0165803
+## E    0    0    2    3 2160   0.0023095
+</pre></div>
+</div></div>
+<p>As you can see, using 400 trees and 7 variables at each split (the default) we get a good accuracy. The following graph allows us to see which are the most important features:</p>
+<div class="chunk" id="unnamed-chunk-4"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">varImpPlot</span><span class="hl std">(fit)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div></div>
+<p>We keep these predictors and train again:</p>
+<div class="chunk" id="unnamed-chunk-5"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">new_cols</span><span class="hl kwb">&lt;-</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">&quot;roll_belt&quot;</span><span class="hl std">,</span><span class="hl str">&quot;pitch_belt&quot;</span><span class="hl std">,</span><span class="hl str">&quot;yaw_belt&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_belt_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_belt_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_belt_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_belt_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_belt_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;roll_arm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;pitch_arm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;yaw_arm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_arm_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_arm_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_arm_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_arm_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;roll_dumbbell&quot;</span><span class="hl std">,</span><span class="hl str">&quot;yaw_dumbbell&quot;</span><span class="hl std">,</span><span class="hl str">&quot;total_accel_dumbbell&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_dumbbell_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_dumbbell_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_dumbbell_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_dumbbell_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_dumbbell_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_dumbbell_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_dumbbell_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;roll_forearm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;pitch_forearm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;yaw_forearm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;total_accel_forearm&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_forearm_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;gyros_forearm_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_forearm_x&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_forearm_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;accel_forearm_z&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_forearm_y&quot;</span><span class="hl std">,</span><span class="hl str">&quot;magnet_forearm_z&quot;</span><span class="hl std">)</span>
+<span class="hl std">new_mat</span><span class="hl kwb">&lt;-</span><span class="hl std">train[,new_cols]</span>
+<span class="hl std">new_mat[,</span><span class="hl str">&quot;classe&quot;</span><span class="hl std">]</span><span class="hl kwb">&lt;-</span><span class="hl std">train[,</span><span class="hl str">&quot;classe&quot;</span><span class="hl std">]</span>
+<span class="hl std">new_fit</span><span class="hl kwb">&lt;-</span><span class="hl kwd">randomForest</span><span class="hl std">(classe</span> <span class="hl opt">~</span> <span class="hl std">.,</span> <span class="hl kwc">n_tree</span><span class="hl std">=</span><span class="hl num">400</span><span class="hl std">,</span> <span class="hl kwc">data</span> <span class="hl std">= new_mat,</span> <span class="hl kwc">importance</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">new_fit</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+##  randomForest(formula = classe ~ ., data = new_mat, n_tree = 400,      importance = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 6
+## 
+##         OOB estimate of  error rate: 0.65%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3347    0    0    0    1   0.0002987
+## B   18 2257    4    0    0   0.0096534
+## C    0   13 2037    4    0   0.0082765
+## D    0    0   27 1902    1   0.0145078
+## E    0    0    2    7 2156   0.0041570
+</pre></div>
+</div></div>
+
+<p>Our new fitted model shows improvement with respect to the previous one. Now we do a cross-validation. In this case, we will try a 15 fold cross validation (This part of the code might take some time to run)</p>
+<div class="chunk" id="unnamed-chunk-6"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com">#install.packages(&quot;cvTools&quot;)</span>
+<span class="hl kwd">library</span><span class="hl std">(cvTools)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## Loading required package: robustbase
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">foldings</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">cvFolds</span><span class="hl std">(</span><span class="hl kwd">dim</span><span class="hl std">(new_mat)[</span><span class="hl num">1</span><span class="hl std">],</span> <span class="hl kwc">K</span> <span class="hl std">=</span> <span class="hl num">15</span><span class="hl std">,</span> <span class="hl kwc">R</span> <span class="hl std">=</span> <span class="hl num">1</span><span class="hl std">)</span>
+<span class="hl std">errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span><span class="hl num">15</span><span class="hl std">)</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">15</span><span class="hl std">) {</span>
+  <span class="hl std">ind</span> <span class="hl kwb">&lt;-</span> <span class="hl std">foldings</span><span class="hl opt">$</span><span class="hl std">subsets[foldings</span><span class="hl opt">$</span><span class="hl std">which</span> <span class="hl opt">==</span> <span class="hl std">i]</span>
+  <span class="hl std">temporal_model</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">randomForest</span><span class="hl std">(classe</span> <span class="hl opt">~</span> <span class="hl std">.,</span> <span class="hl kwc">data</span><span class="hl std">=new_mat[</span><span class="hl opt">-</span><span class="hl std">ind,])</span>
+  <span class="hl std">result</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(temporal_model,new_mat[ind,])</span>
+  <span class="hl std">errors[i]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">sum</span><span class="hl std">(result</span> <span class="hl opt">!=</span> <span class="hl std">new_mat[ind,</span><span class="hl str">&quot;classe&quot;</span><span class="hl std">])</span> <span class="hl opt">/</span> <span class="hl kwd">length</span><span class="hl std">(result)</span>
+<span class="hl std">}</span>
+<span class="hl std">errors</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##  [1] 0.006361 0.002548 0.006369 0.006369 0.010191 0.006369 0.010191
+##  [8] 0.005096 0.007643 0.010191 0.008917 0.014013 0.001274 0.008917
+## [15] 0.002548
+</pre></div>
+</div></div>
+
+<p>Now that the model is ready, we can use it with the test data.</p>
+<div class="chunk" id="unnamed-chunk-7"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(</span><span class="hl kwd">preProcess</span><span class="hl std">(train[,cols],</span> <span class="hl kwc">method</span><span class="hl std">=</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">&quot;center&quot;</span><span class="hl std">,</span><span class="hl str">&quot;scale&quot;</span><span class="hl std">)),train[,cols],realTestData[,cols])</span>
+<span class="hl std">test[,</span><span class="hl str">&quot;classe&quot;</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span><span class="hl std">realTestData[,cols]</span><span class="hl opt">$</span><span class="hl std">classe</span>
+<span class="hl std">OurPrediction</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(new_fit, test)</span>
+</pre></div>
+</div></div>
+
+
+</body>
+</html>
